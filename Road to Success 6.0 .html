@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Best 5 32">
+    
+    <title>Road to Best 5 32 - Study Tracker</title>
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- 引入 DataLabels 插件以顯示百分比 -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    
+    <style>
+        /* --- 英倫 Old Money 風格配色 --- */
+        :root {
+            --primary-color: #1f3c3d; --primary-light: #2d5455; --bg-color: #f4f1ea; --sidebar-bg: #0f1a1c;
+            --text-color: #2c2c2c; --card-bg: #fdfbf7; --accent-color: #8b0000; --gold-accent: #c5a059;
+            --success-color: #27ae60;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Garamond', 'Baskerville', 'Times New Roman', serif; background-color: var(--bg-color);
+            margin: 0; padding: 0; display: flex; height: 100vh; height: -webkit-fill-available; color: var(--text-color); overflow: hidden; 
+            background-image: linear-gradient(to right, rgba(0,0,0,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.02) 1px, transparent 1px); background-size: 40px 40px;
+        }
+
+        /* --- 狀態指示燈 --- */
+        .status-indicator { position: fixed; top: 20px; right: 20px; background: white; border: 1px solid var(--primary-color); padding: 8px 15px; border-radius: 20px; font-family: 'Garamond', serif; font-size: 0.9rem; font-weight: bold; color: var(--primary-color); box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 2000; display: flex; align-items: center; gap: 8px; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+        .status-indicator.show { opacity: 1; }
+        .status-dot { width: 8px; height: 8px; background: var(--success-color); border-radius: 50%; display: inline-block; }
+
+        /* --- 側邊欄 --- */
+        .sidebar { width: 280px; background-color: var(--sidebar-bg); color: #e0e0e0; padding: 25px; padding-top: max(25px, env(safe-area-inset-top)); padding-bottom: max(25px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 15px; flex-shrink: 0; overflow-y: auto; box-shadow: 5px 0 20px rgba(0,0,0,0.3); z-index: 1000; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); border-right: 4px double var(--gold-accent); }
+        .close-sidebar-btn { display: none; background: none; border: none; color: var(--gold-accent); font-size: 1.5rem; cursor: pointer; position: absolute; top: 15px; right: 15px; z-index: 10; }
+        .menu-toggle-btn { display: none; position: fixed; top: max(20px, env(safe-area-inset-top)); left: 20px; z-index: 900; background: var(--sidebar-bg); color: var(--gold-accent); border: 2px solid var(--gold-accent); padding: 8px 18px; border-radius: 4px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 0.95rem; align-items: center; gap: 8px; cursor: pointer; font-family: 'Garamond', serif; letter-spacing: 1px; text-transform: uppercase; }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 990; backdrop-filter: blur(4px); opacity: 0; transition: opacity 0.3s; }
+        .sidebar-overlay.active { display: block; opacity: 1; }
+        .clock-container { background: rgba(255, 255, 255, 0.05); padding: 15px; border: 1px solid var(--gold-accent); border-radius: 4px; text-align: center; margin-bottom: 20px; margin-top: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        .clock-time { font-family: 'Courier New', monospace; font-size: 1.5rem; font-weight: bold; letter-spacing: 2px; color: var(--gold-accent); }
+        .clock-date { font-size: 0.8rem; opacity: 0.7; margin-top: 5px; font-style: italic; }
+        .sidebar h2 { font-size: 1.3rem; margin: 10px 0 20px 0; border-bottom: 1px solid var(--gold-accent); padding-bottom: 10px; display: flex; align-items: center; gap: 10px; font-weight: normal; letter-spacing: 1px; color: var(--gold-accent); }
+        .subject-btn { background: transparent; border: 1px solid rgba(197, 160, 89, 0.3); color: #d0d0d0; padding: 14px; border-radius: 2px; cursor: pointer; text-align: left; transition: all 0.3s; display: flex; justify-content: space-between; align-items: center; font-family: inherit; font-size: 0.95rem; margin-bottom: 8px; position: relative; overflow: hidden; width: 100%; }
+        .subject-btn:hover { background: rgba(197, 160, 89, 0.1); border-color: var(--gold-accent); padding-left: 20px; }
+        .subject-btn.active { background: var(--gold-accent); color: #0f1a1c; border-color: var(--gold-accent); font-weight: bold; box-shadow: 0 0 10px rgba(197, 160, 89, 0.4); }
+        .subject-btn.active .subject-time { background: #0f1a1c; color: var(--gold-accent); }
+        .subject-time { font-size: 0.75rem; opacity: 0.8; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 2px; }
+        .nav-btn { background: var(--accent-color); color: white; border: none; padding: 14px; border-radius: 2px; cursor: pointer; font-weight: bold; margin-top: 10px; font-family: inherit; text-align: center; text-transform: uppercase; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; width: 100%; }
+        .nav-btn:active { transform: translateY(1px); filter: brightness(0.9); }
+        .nav-secondary { background: #2c3e50; }
+        .nav-settings { background: #555; }
+        .nav-special { background: #1f3c3d; border: 1px solid var(--gold-accent); color: var(--gold-accent); }
+        .lang-switch { margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+        #languageSelect { background: rgba(0,0,0,0.3); color: #ccc; border: 1px solid #444; border-radius: 2px; }
+
+        /* --- 主內容 --- */
+        .main-content { flex-grow: 1; padding: 40px; padding-top: max(40px, env(safe-area-inset-top)); padding-bottom: max(40px, env(safe-area-inset-bottom)); overflow-y: auto; position: relative; -webkit-overflow-scrolling: touch; }
+        .page { display: none; animation: fadeIn 0.5s ease-out; }
+        .page.active { display: grid; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .dashboard-grid { grid-template-columns: repeat(2, 1fr); gap: 25px; width: 100%; }
+        .full-width { grid-column: 1 / -1; }
+        .card { background: var(--card-bg); border-radius: 4px; padding: 30px; border: 3px double #dcdcdc; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.2s; position: relative; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); border-color: var(--gold-accent); }
+        h3 { margin-top: 0; color: var(--primary-color); border-bottom: 2px solid var(--gold-accent); padding-bottom: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 1.1rem; }
+        
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"], input[type="time"], input[type="date"], input[type="datetime-local"], input[type="number"], textarea, select { padding: 12px; background: #fdfbf7; border: 1px solid #ccc; border-radius: 2px; flex-grow: 1; outline: none; font-family: inherit; color: #333; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); font-size: 1rem; }
+        input[type="text"]:focus, input[type="time"]:focus, input[type="date"]:focus { border-color: var(--primary-color); background: white; }
+        button.action-btn { background: var(--primary-color); color: white; border: none; padding: 8px 25px; border-radius: 2px; cursor: pointer; font-weight: normal; font-family: 'Garamond', serif; text-transform: uppercase; letter-spacing: 1px; transition: background 0.2s; }
+        button.action-btn:hover { background: var(--primary-light); }
+        ul { list-style: none; padding: 0; }
+        li { display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid #eee; align-items: center; font-size: 1.05rem; }
+        .done { text-decoration: line-through; color: #999; font-style: italic; }
+
+        /* Life List Styles (Updated) */
+        .life-section { margin-bottom: 30px; }
+        .life-section-title { font-size: 1.2rem; color: var(--accent-color); font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .life-list-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px dashed #ccc; transition: 0.2s; background: white; border-radius: 4px; margin-bottom: 5px; }
+        .life-list-item:hover { transform: translateX(2px); }
+        .life-list-item.completed-item { background-color: rgba(39, 174, 96, 0.2); border-left: 4px solid var(--success-color); }
+        .life-checkbox { margin-right: 15px; width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary-color); }
+        .life-text { flex-grow: 1; font-family: 'Garamond', serif; font-size: 1.1rem; }
+        .life-text.completed { text-decoration: line-through; color: #555; }
+        .life-age-badge { background: var(--gold-accent); color: #0f1a1c; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; margin-left: 10px; }
+        .life-actions { display: flex; gap: 10px; }
+        .life-actions button { background: none; border: none; cursor: pointer; color: #666; font-size: 1.1rem; padding: 5px; }
+        .life-actions button:hover { color: var(--accent-color); transform: scale(1.1); }
+        
+        /* Life Charts Container */
+        .life-charts-row { display: flex; gap: 20px; margin-bottom: 30px; justify-content: center; flex-wrap: wrap; }
+        .life-chart-wrapper { position: relative; width: 150px; height: 150px; }
+        .life-chart-center-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; font-size: 1.2rem; color: var(--primary-color); font-family: 'Courier New', monospace; }
+        .life-chart-label { text-align: center; margin-top: 8px; font-weight: bold; color: #666; font-size: 0.9rem; }
+
+        /* M World Group Actions - ALWAYS VISIBLE */
+        .group-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 5px; z-index: 5; }
+        .group-btn { background: rgba(255,255,255,0.95); border: 1px solid #ccc; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .group-btn:hover { color: var(--primary-color); border-color: var(--primary-color); transform: scale(1.1); }
+
+        /* 行程表 / 月曆樣式 */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-weight: bold; font-size: 1.2rem; color: var(--primary-color); }
+        .calendar-nav-btn { background: none; border: 1px solid var(--primary-color); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--primary-color); transition:0.2s; }
+        .calendar-nav-btn:hover { background: var(--primary-color); color: white; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
+        .calendar-day-header { font-weight: bold; font-size: 0.9rem; padding: 10px 0; color: #666; }
+        .calendar-day { height: 60px; border: 1px solid #eee; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding-top: 5px; cursor: pointer; background: white; transition: 0.2s; position: relative; font-size: 0.9rem; }
+        .calendar-day:hover { background: #f0f0f0; border-color: var(--gold-accent); }
+        .calendar-day.selected { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .calendar-day.today { font-weight: bold; color: var(--accent-color); border: 2px solid var(--accent-color); }
+        .calendar-day.other-month { opacity: 0.3; pointer-events: none; }
+        .day-marker { width: 6px; height: 6px; background: var(--gold-accent); border-radius: 50%; position: absolute; bottom: 5px; }
+        
+        .schedule-list-container { max-height: 400px; overflow-y: auto; }
+        .schedule-item { background: white; border-left: 4px solid var(--gold-accent); padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .schedule-time { font-weight: bold; color: var(--primary-color); font-size: 0.9rem; margin-right: 10px; min-width: 90px; text-align: center; }
+        .schedule-info { flex-grow: 1; }
+        .schedule-title { font-weight: bold; font-size: 1rem; }
+        .schedule-actions button { background: none; border: none; cursor: pointer; color: #999; margin-left: 5px; }
+        .schedule-actions button:hover { color: var(--accent-color); }
+
+        /* Progress Controls */
+        .progress-controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .progress-tab { padding: 10px 20px; background: #ddd; border: none; cursor: pointer; font-family: inherit; font-weight: bold; border-radius: 4px; transition: 0.3s; }
+        .progress-tab.active { background: var(--primary-color); color: white; }
+        .date-navigator { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px; font-size: 1.2rem; font-weight: bold; color: var(--primary-color); }
+        .nav-arrow { background: none; border: 1px solid var(--primary-color); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .nav-arrow:hover { background: var(--primary-color); color: white; }
+
+        /* Countdown Cards & Global Timer */
+        .main-countdown-container { text-align: center; margin-bottom: 30px; padding: 20px; border-bottom: 3px double var(--gold-accent); }
+        .main-countdown-timer { font-size: 2.8rem; font-family: 'Courier New', monospace; font-weight: bold; color: var(--primary-color); margin-top: 10px; letter-spacing: 2px; }
+        .limit-quote { font-style: italic; color: #8b0000; margin-top: 15px; font-size: 1.3rem; letter-spacing: 1px; font-family: 'Garamond', serif; font-weight: bold; }
+        
+        /* Dashboard Quote Style */
+        .dashboard-quote-container { text-align: center; margin-bottom: 20px; padding: 15px; border-bottom: 3px double var(--gold-accent); background: linear-gradient(to bottom, #fdfbf7, #f4f1ea); border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .dashboard-quote { font-family: 'Garamond', serif; font-style: italic; font-size: 1.4rem; color: var(--primary-color); font-weight: bold; line-height: 1.4; margin-bottom: 15px; }
+
+        .countdown-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .countdown-card { background: white; padding: 15px; border: 1px solid #ddd; border-left: 5px solid var(--primary-color); border-radius: 4px; display: flex; flex-direction: column; justify-content: space-between; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .countdown-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .countdown-days { font-size: 2rem; font-weight: bold; color: var(--accent-color); font-family: 'Courier New', monospace; }
+        .countdown-label { font-size: 0.9rem; color: #666; margin-top: 5px; }
+        .countdown-date { font-size: 0.8rem; color: #999; margin-top: auto; padding-top: 10px; font-style: italic; }
+        
+        .status-toggle-btn { display: block; width: 100%; margin-top: 12px; padding: 8px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9rem; transition: 0.3s; font-family: inherit; }
+        .status-relaxed { background-color: white; color: var(--success-color); border-color: var(--success-color); }
+        .status-relaxed:hover { background-color: var(--success-color); color: white; }
+        .status-sprinting { background-color: white; color: var(--accent-color); border-color: var(--accent-color); }
+        .status-sprinting:hover { background-color: var(--accent-color); color: white; }
+        
+        .countdown-edit-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer; font-size: 1rem; color: #999; opacity: 0.5; transition: 0.2s; }
+        .countdown-edit-btn:hover { opacity: 1; color: var(--primary-color); }
+        .countdown-card { position: relative; }
+
+        /* Music Styles */
+        .music-iframe-container { width: 100%; height: 450px; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; background: #fff; margin-bottom: 20px; }
+        .music-iframe-container iframe { width: 100%; height: 100%; border: none; }
+        .noise-controls { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; }
+        .noise-btn { flex: 1; padding: 15px; background: #fff; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .noise-btn:hover { background: var(--primary-color); color: white; }
+        .noise-btn.playing { background: var(--primary-color); color: white; box-shadow: inset 0 0 10px rgba(0,0,0,0.3); }
+
+        /* Gallery / Lightbox */
+        .upload-area { border: 2px dashed #ccc; padding: 25px; text-align: center; margin-bottom: 25px; background: #fdfbf7; cursor: pointer; transition:0.2s; }
+        .upload-area:hover { border-color: var(--gold-accent); background: #fff; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+        .gallery-item { border: 1px solid #ddd; padding: 8px; background: white; position: relative; transition: transform 0.2s; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .gallery-item:hover { transform: scale(1.02); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .gallery-item-content { position: relative; width: 100%; height: 180px; background: #f9f9f9; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
+        .gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .gallery-pdf-icon { font-size: 3rem; color: #e74c3c; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .gallery-pdf-text { font-size: 0.8rem; color: #555; margin-top: 5px; font-weight: bold; }
+        .delete-file-btn { color: #8b0000; border: none; background: none; cursor: pointer; font-weight: bold; font-size: 1.2rem; line-height: 1; z-index: 20; position: relative; padding: 5px; }
+
+        /* Lightbox Viewer */
+        .lightbox-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 6000; display: none; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .lightbox-overlay.active { display: flex; }
+        .lightbox-content { width: 95%; height: 85%; position: relative; display: flex; justify-content: center; align-items: center; }
+        .lightbox-content img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        .lightbox-content iframe { width: 100%; height: 100%; border: none; background: white; }
+        .lightbox-close { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 3rem; cursor: pointer; z-index: 6001; line-height: 1; opacity: 0.8; font-family: sans-serif; }
+        .lightbox-close:hover { opacity: 1; color: var(--gold-accent); }
+        .lightbox-fallback-btn { margin-top: 15px; padding: 10px 20px; background: var(--gold-accent); color: #000; text-decoration: none; font-weight: bold; border-radius: 4px; font-family: 'Garamond', serif; display: inline-block; z-index: 6002; }
+
+        /* Folder Styles */
+        .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; margin-top: 20px; }
+        .folder-item { background: #fff; border: 1px solid #ccc; padding: 20px; text-align: center; cursor: pointer; border-radius: 4px; transition: 0.2s; position: relative; }
+        .folder-item:hover { border-color: var(--primary-color); background: #f9f9f9; transform: translateY(-2px); }
+        .folder-icon { font-size: 2.5rem; margin-bottom: 10px; display: block; }
+        .folder-name { font-weight: bold; font-family: 'Garamond', serif; }
+        .back-btn { background: none; border: none; color: var(--primary-color); cursor: pointer; font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; font-family: 'Garamond', serif; }
+
+        /* Other Styles */
+        .settings-list { list-style: none; padding: 0; margin-top: 20px; }
+        .settings-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 10px; border-bottom: 1px solid #dcdcdc; cursor: grab; }
+        .settings-item:active { cursor: grabbing; background: #f0f0f0; }
+        .settings-item.dragging { opacity: 0.5; }
+        .color-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #aaa; display: inline-block; margin-right: 12px; }
+        .action-icon-btn { background: transparent; border: 1px solid #999; color: #555; padding: 5px 12px; margin-left: 8px; cursor: pointer; border-radius: 2px; font-family: 'Garamond', serif; font-size: 0.9rem; transition: all 0.2s; }
+        .action-icon-btn:hover { background: #333; color: white; }
+        .data-btn { width: 100%; padding: 15px; margin-bottom: 10px; font-size: 1rem; border: 1px solid #ccc; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 2px; }
+        .data-btn:hover { background: #f0f0f0; border-color: var(--primary-color); }
+        .storage-bar { width: 100%; background: #ddd; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 5px; }
+        .storage-fill { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.5s; }
+        .editor-container { margin-top: 20px; } .editor-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #ccc; } .editor-label { display: flex; align-items: center; gap: 8px; font-weight: bold; } .editor-inputs { display: flex; align-items: center; gap: 5px; } .editor-input-num { width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 2px; text-align: center; font-family: inherit; } 
+
+        /* Modals */
+        .custom-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 5000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .custom-modal-overlay.active { display: flex; }
+        .custom-modal { background: #fdfbf7; border: 4px double var(--gold-accent); padding: 25px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); text-align: center; }
+        .custom-modal h4 { margin-top: 0; color: var(--primary-color); font-family: 'Garamond', serif; font-size: 1.5rem; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 20px; }
+        .modal-actions { display: flex; justify-content: center; gap: 10px; }
+        .modal-btn { padding: 8px 20px; border: 1px solid #ccc; background: white; cursor: pointer; font-family: 'Garamond', serif; font-weight: bold; transition: all 0.2s; }
+        .modal-btn.confirm { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .modal-btn.danger { background: var(--accent-color); color: white; border-color: var(--accent-color); }
+        .modal-btn.cancel { background: #eee; color: #333; }
+
+        /* Timer Overlay */
+        #timerOverlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 26, 28, 0.98); z-index: 2000; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; border: 20px solid var(--primary-color); box-shadow: inset 0 0 50px black; }
+        #timerOverlay.active { display: flex; }
+        .timer-display { font-size: 7rem; font-family: 'Garamond', serif; color: var(--gold-accent); text-shadow: 0 0 15px rgba(197, 160, 89, 0.3); margin-bottom: 40px; letter-spacing: -2px; }
+        .current-subject-title { font-size: 2.2rem; margin-bottom: 10px; color: #f4f1ea; font-style: italic; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .fire-btn { font-size: 1.8rem; padding: 20px 50px; border: 2px solid var(--gold-accent); border-radius: 50%; width: 180px; height: 180px; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, #8b0000, #500000); color: var(--gold-accent); font-weight: bold; cursor: pointer; box-shadow: 0 0 20px rgba(139, 0, 0, 0.5), inset 0 0 20px rgba(0,0,0,0.5); animation: pulse 1.5s infinite ease-in-out; position: relative; z-index: 2100; font-family: 'Garamond', serif; letter-spacing: 2px; outline: none; user-select: none; }
+        .fire-btn:active { transform: scale(0.95); background: #500000; }
+        @keyframes pulse { 0% { box-shadow: 0 0 15px rgba(139, 0, 0, 0.5); } 50% { box-shadow: 0 0 30px rgba(197, 160, 89, 0.5); border-color: #fff; } 100% { box-shadow: 0 0 15px rgba(139, 0, 0, 0.5); } }
+        .stop-btn { margin-top: 40px; background: transparent; border: 1px solid #666; color: #aaa; padding: 10px 30px; border-radius: 2px; cursor: pointer; font-size: 1rem; transition: 0.2s; text-transform: uppercase; letter-spacing: 2px; }
+        .stop-btn:hover { border-color: white; color: white; }
+        .pop-text { position: fixed; color: var(--gold-accent); font-family: 'Garamond', serif; font-weight: bold; font-size: 2.5rem; font-style: italic; pointer-events: none; animation: floatUp 1s forwards cubic-bezier(0.23, 1, 0.32, 1); text-shadow: 2px 2px 0 #000; white-space: nowrap; z-index: 3000; }
+        @keyframes floatUp { 0% { opacity: 0; transform: translateY(20px) scale(0.8); } 20% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.1); } }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { position: fixed; top: 0; bottom: 0; left: 0; width: 85%; max-width: 320px; height: 100%; transform: translateX(-100%); box-shadow: none; border-right: none; }
+            .sidebar.active { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+            .menu-toggle-btn { display: flex; } .close-sidebar-btn { display: block; }
+            .main-content { grid-template-columns: 1fr; padding: 20px; padding-top: max(80px, env(safe-area-inset-top)); }
+            .timer-display { font-size: 4.5rem; } .fire-btn { width: 150px; height: 150px; font-size: 1.5rem; }
+            #timerOverlay { border-width: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="status-indicator" id="saveStatus">
+        <span class="status-dot"></span>
+        <span id="saveStatusText">Data Saved on Device</span>
+    </div>
+
+    <!-- Lightbox Viewer -->
+    <div class="lightbox-overlay" id="fileViewer" onclick="closeFileViewer()">
+        <span class="lightbox-close">&times;</span>
+        <div class="lightbox-content" id="lightboxContent" onclick="event.stopPropagation()"></div>
+        <a id="lightboxDownloadBtn" href="#" target="_blank" class="lightbox-fallback-btn" style="display:none;" onclick="event.stopPropagation()">📥 Download/Open File</a>
+    </div>
+
+    <button class="menu-toggle-btn" onclick="toggleSidebar()">📦 百寶袋</button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <div class="sidebar" id="sidebar">
+        <button class="close-sidebar-btn" onclick="toggleSidebar()">✕</button>
+        <div class="clock-container"><div id="liveTime" class="clock-time">00:00:00</div><div id="liveDate" class="clock-date"></div></div>
+        <h2 id="lbl_sidebar_title">Subjects</h2>
+        <div id="subjectList" style="flex-grow:1; display:flex; flex-direction:column; gap:8px;"></div>
+        
+        <button id="btn_nav_control" class="nav-btn nav-special" onclick="showPage('control-life'); toggleSidebar(false);">🌍 M爆世界</button>
+        <button id="btn_nav_dse" class="nav-btn nav-special" onclick="showPage('dse-timetable'); toggleSidebar(false);">📅 DSE Countdown</button>
+        <button id="btn_nav_exam" class="nav-btn nav-special" onclick="showPage('exam-countdown'); toggleSidebar(false);">🏫 Next Exam</button>
+        <button id="btn_nav_schedule" class="nav-btn nav-special" onclick="showPage('schedule'); toggleSidebar(false);">📅 行程表</button>
+        <button id="btn_nav_music" class="nav-btn nav-special" onclick="showPage('music'); toggleSidebar(false);">🎵 Music</button>
+        <button id="btn_nav_life" class="nav-btn nav-special" onclick="showPage('life-list'); toggleSidebar(false);">📜 人生清單</button>
+        
+        <button id="btn_nav_progress" class="nav-btn" onclick="showPage('progress'); toggleSidebar(false);">📊 Progress</button>
+        <button id="btn_nav_settings" class="nav-btn nav-settings" onclick="showPage('settings'); toggleSidebar(false);">⚙️ Settings</button>
+        <button id="btn_nav_home" class="nav-btn nav-secondary" onclick="showPage('dashboard'); toggleSidebar(false);">🏠 Home</button>
+        <div class="lang-switch"><label id="lbl_lang" style="display:block; margin-bottom:5px; font-size:0.9rem; opacity:0.6;">Language</label><select id="languageSelect" onchange="changeLanguage()" style="width:100%; padding:8px; font-size:16px; border-radius:2px; border:1px solid #444; background:#0f1a1c; color:white;"><option value="zh">繁體中文</option><option value="en">English</option></select></div>
+    </div>
+
+    <div class="main-content">
+        <!-- Dashboard -->
+        <div id="page-dashboard" class="page active dashboard-grid">
+            <div class="card full-width dashboard-quote-container">
+                <div class="dashboard-quote">"Confidence comes from you keeping the promises you made to yourself"</div>
+                <div style="font-size:0.9rem; color:#666; font-weight:bold; margin-top:10px;">NEXT DSE EXAM IN</div>
+                <div id="dashboardDseTimer" class="main-countdown-timer" style="font-size:2rem;">00:00:00:00</div>
+            </div>
+
+            <!-- Dashboard Life Charts (New) -->
+            <div class="card full-width" style="text-align:center;">
+                <h3>🎯 Life Goals Progress</h3>
+                <div class="life-charts-row">
+                    <div class="life-chart-wrapper">
+                        <canvas id="dashShortLifeChart"></canvas>
+                        <div id="dashShortLifeCenter" class="life-chart-center-text">0%</div>
+                        <div class="life-chart-label">Short-term</div>
+                    </div>
+                    <div class="life-chart-wrapper">
+                        <canvas id="dashLongLifeChart"></canvas>
+                        <div id="dashLongLifeCenter" class="life-chart-center-text">0%</div>
+                        <div class="life-chart-label">Long-term</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Area -->
+            <div class="card">
+                <h3 id="lbl_today_tasks">📝 Tasks (Today)</h3>
+                <div class="input-group">
+                    <input type="text" id="taskInput" placeholder="New Task...">
+                    <button id="btn_add_task" class="action-btn" onclick="addTask()">Add</button>
+                </div>
+                <ul id="taskList"></ul>
+                <p style="font-size:0.8rem; color:#999; text-align:center; margin-top:20px; font-style:italic;">* 每日凌晨 05:00 自動重置</p>
+            </div>
+
+            <!-- New: Schedule on Dashboard -->
+            <div class="card">
+                <h3 id="lbl_today_schedule_dash">📅 Today's Schedule</h3>
+                <div id="dashboardScheduleList" class="schedule-list-container" style="max-height: 300px; padding-top:10px;">
+                    <p style="text-align:center; color:#999;">Loading...</p>
+                </div>
+                <button class="action-btn" onclick="showPage('schedule')" style="margin-top:15px; width:100%; font-size:0.8rem; background:none; border:1px solid var(--primary-color); color:var(--primary-color);">Manage Full Schedule →</button>
+            </div>
+
+            <div class="card full-width"><h3 id="lbl_monthly_line">📈 Monthly Trend (Hours)</h3><div style="height: 250px;"><canvas id="monthlyChart"></canvas></div></div>
+        </div>
+
+        <!-- Life Bucket List (Updated) -->
+        <div id="page-life-list" class="page dashboard-grid">
+            <div class="card full-width">
+                <h3>📜 Life Bucket List</h3>
+                
+                <div class="life-charts-row" style="margin:20px 0;">
+                    <div class="life-chart-wrapper">
+                        <canvas id="pageShortLifeChart"></canvas>
+                        <div id="pageShortLifeCenter" class="life-chart-center-text">0%</div>
+                        <div class="life-chart-label">Short-term</div>
+                    </div>
+                    <div class="life-chart-wrapper">
+                        <canvas id="pageLongLifeChart"></canvas>
+                        <div id="pageLongLifeCenter" class="life-chart-center-text">0%</div>
+                        <div class="life-chart-label">Long-term</div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="lifeGoalInput" placeholder="I want to achieve..." style="flex:2;">
+                    <input type="number" id="lifeAgeInput" placeholder="Age" style="width:80px;">
+                    <select id="lifeTypeInput" style="width:120px;">
+                        <option value="short">🚀 Short</option>
+                        <option value="long">🏔️ Long</option>
+                    </select>
+                    <button class="action-btn" onclick="addLifeGoal()">Add</button>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div>
+                        <h4 class="life-section-title">🚀 Short-term Goals</h4>
+                        <div id="shortLifeListContainer"></div>
+                        <h5 style="color:#999; margin-top:20px; border-bottom:1px solid #eee;">Completed</h5>
+                        <div id="shortLifeCompletedContainer"></div>
+                    </div>
+                    <div>
+                        <h4 class="life-section-title">🏔️ Long-term Goals</h4>
+                        <div id="longLifeListContainer"></div>
+                        <h5 style="color:#999; margin-top:20px; border-bottom:1px solid #eee;">Completed</h5>
+                        <div id="longLifeCompletedContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Music Page -->
+        <div id="page-music" class="page dashboard-grid">
+            <div class="card full-width">
+                <h3>🎵 Study Music Center</h3>
+                <p style="color:#666; margin-bottom:20px;">Use the Apple Music player below, or launch the app directly.</p>
+                
+                <button onclick="window.open('music://')" style="width:100%; background: #fa243c; color:white; padding:15px; font-weight:bold; border:none; border-radius:8px; margin-bottom:20px; font-size:1.1rem; cursor:pointer;"> Open Apple Music App</button>
+                
+                <div class="music-iframe-container">
+                    <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="450" style="width:100%;max-width:100%;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.music.apple.com/us/playlist/study-beats/pl.f4d106da243b4c18aef768222a7f5a43"></iframe>
+                </div>
+                
+                <hr style="margin: 30px 0; border:0; border-top:1px dashed #ccc;">
+                
+                <h3>🌧️ Focus White Noise</h3>
+                <div class="noise-controls">
+                    <button class="noise-btn" id="btnRain" onclick="toggleNoise('rain')">🌧️ Rain</button>
+                    <button class="noise-btn" id="btnCafe" onclick="toggleNoise('cafe')">☕ Cafe</button>
+                    <button class="noise-btn" id="btnWhite" onclick="toggleNoise('white')">📻 Static</button>
+                </div>
+                <!-- 使用兼容性更好的 MP3 檔案 -->
+                <audio id="audioRain" loop src="https://www.soundjay.com/nature/sounds/rain-01.mp3"></audio>
+                <audio id="audioCafe" loop src="https://www.soundjay.com/human/sounds/crowd-talking-1.mp3"></audio>
+                <audio id="audioWhite" loop src="https://www.soundjay.com/mechanical/sounds/tv-static-01.mp3"></audio>
+            </div>
+        </div>
+
+        <!-- Schedule / Calendar Page -->
+        <div id="page-schedule" class="page dashboard-grid">
+            <div class="card" style="grid-column: span 1;">
+                <div class="calendar-header">
+                    <button class="calendar-nav-btn" onclick="changeCalendarMonth(-1)">❮</button>
+                    <span id="calendarTitle">Month Year</span>
+                    <button class="calendar-nav-btn" onclick="changeCalendarMonth(1)">❯</button>
+                </div>
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- JS Generated -->
+                </div>
+            </div>
+            <div class="card" style="grid-column: span 1; display:flex; flex-direction:column;">
+                <h3 id="lbl_schedule_list">📅 行程列表</h3>
+                <p id="selectedDateDisplay" style="color:gray; font-style:italic; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:5px;">Select a date</p>
+                <div id="scheduleList" class="schedule-list-container">
+                    <!-- Events go here -->
+                </div>
+                
+                <div style="margin-top:auto; padding-top:20px; border-top:2px double #ccc;">
+                    <h4>新增行程</h4>
+                    <input type="text" id="scheduleTitleInput" placeholder="事項名稱..." style="width:100%; margin-bottom:10px;">
+                    <div style="display:flex; gap:5px; margin-bottom:10px; align-items: center;">
+                        <input type="time" id="scheduleStartTimeInput" style="flex:1;" title="開始時間">
+                        <span style="font-weight:bold; color:var(--primary-color);">-</span>
+                        <input type="time" id="scheduleEndTimeInput" style="flex:1;" title="結束時間">
+                        <input type="color" id="scheduleColorInput" value="#1f3c3d" style="width:40px; padding:0; border:none; height:42px; cursor:pointer; flex-shrink:0;">
+                    </div>
+                    <button class="action-btn" onclick="addScheduleEvent()" style="width:100%;">新增至當日</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div id="page-progress" class="page dashboard-grid">
+            <div class="full-width progress-controls">
+                <button class="progress-tab active" onclick="switchProgressView('monthly')" id="tabMonthly">📅 Monthly Trend</button>
+                <button class="progress-tab" onclick="switchProgressView('daily')" id="tabDaily">📆 Daily Record</button>
+            </div>
+
+            <!-- Monthly View -->
+            <div id="viewMonthly" class="full-width" style="display:block;">
+                <div class="card"><h3 id="lbl_monthly_study_chart">📈 Study Hours (Last 30 Days)</h3><div style="height: 300px;"><canvas id="trendLineChart"></canvas></div></div>
+            </div>
+
+            <!-- Daily View -->
+            <div id="viewDaily" class="full-width" style="display:none;">
+                <div class="date-navigator">
+                    <button class="nav-arrow" onclick="changeDate(-1)">❮</button>
+                    <span id="currentDateDisplay"></span>
+                    <button class="nav-arrow" onclick="changeDate(1)">❯</button>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="card full-width">
+                        <h3>📊 Daily Stats</h3>
+                        <div style="display:flex; justify-content:space-around; text-align:center;">
+                            <div><div style="font-size:2rem; font-weight:bold; color:var(--primary-color);" id="dayTotalHours">0.0h</div><div style="color:#666;">Study Time</div></div>
+                            <div><div style="font-size:2rem; font-weight:bold; color:var(--success-color);" id="dayTaskCompletion">0%</div><div style="color:#666;">Task Completion</div></div>
+                        </div>
+                    </div>
+                    <div class="card full-width">
+                        <h3>🍰 Distribution (%)</h3>
+                        <div style="height: 300px; position: relative;">
+                            <canvas id="dailySubjectChart"></canvas>
+                            <!-- No Data Message Overlay -->
+                            <div id="dailyChartNoData" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); display:none; color:#999; font-weight:bold;">No Data</div>
+                        </div>
+                    </div>
+                    <div class="card full-width">
+                        <h3>✅ Completed Tasks</h3>
+                        <ul id="historyTaskList" style="opacity:0.8;"></ul>
+                    </div>
+                    <!-- Editor integrated into daily view -->
+                    <div class="card full-width"><h3 id="lbl_edit_records">✏️ Edit Time (Precision)</h3><div id="editorContainer" class="editor-container"></div><button class="action-btn" style="margin-top:15px; width:100%;" onclick="saveEditorData()">Save Changes</button></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DSE Timetable -->
+        <div id="page-dse-timetable" class="page dashboard-grid">
+            <div class="card full-width">
+                <div class="main-countdown-container">
+                    <div style="font-size:1rem; color:#666; font-weight:bold;">NEXT DSE EXAM IN</div>
+                    <div id="globalDseTimer" class="main-countdown-timer">00:00:00:00</div>
+                    <div class="limit-quote">"Know your limits"</div>
+                </div>
+                <h3>⏳ DSE 2026 Countdown</h3>
+                <p style="color:#666; font-style:italic; margin-bottom:20px;">Based on standard DSE schedule. Edit dates by clicking the edit icon on cards.</p>
+                <div id="dseCountdownGrid" class="countdown-grid"></div>
+                <button class="action-btn" style="width:100%; margin-top:20px; border:2px dashed #ccc; background:none; color:#666;" onclick="openAddSubjectModal()">+ Add New DSE Subject/Exam</button>
+            </div>
+            <div class="card full-width"><h3>📅 Timetable Files</h3><div class="upload-area" onclick="document.getElementById('dseFileInput').click()"><p style="margin:0; font-weight:bold; font-size:1.1rem;">Click to Upload Timetables/Notes</p><input type="file" id="dseFileInput" accept="image/*,application/pdf" style="display:none;" onchange="handleDseFileUpload(this)"></div><div class="gallery-grid" id="dseContentGrid"></div></div>
+        </div>
+
+        <!-- Next Exam Countdown Page -->
+        <div id="page-exam-countdown" class="page dashboard-grid">
+            <div class="card full-width">
+                <div class="main-countdown-container">
+                    <div style="font-size:1rem; color:#666; font-weight:bold;">NEXT SCHOOL EXAM IN</div>
+                    <div id="globalExamTimer" class="main-countdown-timer">00:00:00:00</div>
+                    <div class="limit-quote">"Know your limits"</div>
+                </div>
+                <h3>🏫 Next Exam Countdown (Self-Input)</h3>
+                <p style="color:#666; font-style:italic; margin-bottom:20px;">Edit specific exam dates via Settings (✎).</p>
+                <div id="examCountdownGrid" class="countdown-grid"></div>
+            </div>
+        </div>
+
+        <!-- Settings & M World -->
+        <div id="page-settings" class="page dashboard-grid">
+            <div class="card full-width"><h3 id="lbl_settings_title">⚙️ Manage Subjects</h3><div class="input-group" style="margin-top:20px;"><input type="text" id="newSubjectName" placeholder="New Subject Name..."><input type="color" id="newSubjectColor" value="#1f3c3d" style="width:50px; padding:0; border:none; height:45px; margin-right:10px; cursor:pointer;"><button id="btn_add_subject" class="action-btn" onclick="addNewSubject()">Add</button></div><ul id="settingsSubjectList" class="settings-list"></ul></div>
+            
+            <!-- New: Focus Preferences -->
+            <div class="card full-width">
+                <h3>🎯 Focus Preferences</h3>
+                <p style="color:#666; font-size:0.9rem;">Custom text to display when focus button is pressed.</p>
+                <div class="input-group">
+                    <input type="text" id="focusTextInput" placeholder="E.g. FOCUS!, FIGHT!, 加油!" onchange="updateFocusText()">
+                </div>
+            </div>
+
+            <div class="card full-width"><h3>💾 Device Storage Status</h3><p style="color:#666; font-size:0.9rem; margin-bottom:15px;">Your data is automatically saved to this device's internal storage.</p><div style="background:#eee; padding:15px; border-radius:4px; margin-bottom:20px;"><div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:5px;"><span>Internal Storage Used</span><span id="storageUsedText">0 MB</span></div><div class="storage-bar"><div class="storage-fill" id="storageBarFill"></div></div></div><hr style="border:0; border-top:1px solid #ccc; margin:20px 0;"><button class="data-btn" onclick="exportData()">⬇️ Download Backup File</button><button class="data-btn" onclick="document.getElementById('importFile').click()">⬆️ Restore from Backup</button><input type="file" id="importFile" style="display:none;" onchange="importData(this)" accept=".json"></div>
+        </div>
+
+        <div id="page-control-life" class="page dashboard-grid">
+            <div class="card full-width" id="mLevel1"><h3>🌍 Control Your Life - Subjects</h3><p style="color:#666; font-style:italic;">Select a subject to access your library.</p><div class="folder-grid" id="mSubjectGrid"></div></div>
+            <div class="card full-width" id="mLevel2" style="display:none;"><button class="back-btn" onclick="goBackToLevel1()">← Back</button><h3 id="mCurrentSubjectTitle">Subject</h3><div class="input-group"><input type="text" id="newGroupName" placeholder="New Group Name..."><button class="action-btn" onclick="addNewGroup()">Add Group</button></div><div class="folder-grid" id="mGroupGrid"></div></div>
+            <div class="card full-width" id="mLevel3" style="display:none;"><button class="back-btn" onclick="goBackToLevel2()">← Back</button><h3 id="mCurrentGroupTitle">Files</h3><div class="upload-area" onclick="document.getElementById('fileInput').click()"><p style="margin:0; font-weight:bold; font-size:1.1rem;">Click to Upload Photos/PDF</p><input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none;" onchange="handleFileUpload(this)"></div><div class="gallery-grid" id="mContentGrid"></div></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="custom-modal-overlay" id="deleteModal"><div class="custom-modal">
+        <h4 id="lbl_delete_title">Confirmation</h4><p id="lbl_delete_msg">Are you sure?</p>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" onclick="closeDeleteModal()">Cancel</button>
+            <button class="modal-btn danger" id="btn_confirm_delete">Delete</button>
+        </div>
+    </div></div>
+    
+    <div class="custom-modal-overlay" id="renameModal"><div class="custom-modal"><h4 id="lbl_rename_title">Edit Subject</h4><input type="text" id="renameInput" placeholder="Enter new name"><div class="input-group" style="margin-top:10px; display:block; text-align:left;"><label style="font-size:0.9rem; font-weight:bold; color:var(--primary-color);">DSE Date (YYYY-MM-DD):</label><input type="date" id="renameDateInput" style="width:100%; margin-top:5px;"></div><div class="input-group" style="margin-top:15px; display:block; text-align:left;"><label style="font-size:0.9rem; font-weight:bold; color:var(--accent-color);">Next Exam Date/Time:</label><input type="datetime-local" id="nextExamDateInput" style="width:100%; margin-top:5px;"></div><div class="modal-actions" style="margin-top:20px;"><button class="modal-btn cancel" onclick="closeRenameModal()">Cancel</button><button class="modal-btn confirm" id="btn_confirm_rename">Save</button></div></div></div>
+
+    <!-- Group Action Modal (New) -->
+    <div class="custom-modal-overlay" id="groupActionModal"><div class="custom-modal">
+        <h4>Edit Group</h4>
+        <input type="text" id="editGroupNameInput" placeholder="Group Name">
+        <div class="modal-actions" style="margin-top:20px;">
+            <button class="modal-btn cancel" onclick="closeGroupActionModal()">Cancel</button>
+            <button class="modal-btn confirm" onclick="saveGroupRename()">Rename</button>
+        </div>
+    </div></div>
+    
+    <!-- Life List Edit Modal (New) -->
+    <div class="custom-modal-overlay" id="lifeEditModal"><div class="custom-modal">
+        <h4>Edit Life Goal</h4>
+        <input type="text" id="editLifeGoalInput" placeholder="Goal" style="margin-bottom:10px; width:100%;">
+        <input type="number" id="editLifeAgeInput" placeholder="Age" style="width:100%;">
+        <select id="editLifeTypeInput" style="width:100%; margin-top:10px;">
+            <option value="short">Short-term</option>
+            <option value="long">Long-term</option>
+        </select>
+        <div class="modal-actions" style="margin-top:20px;">
+            <button class="modal-btn cancel" onclick="closeLifeEditModal()">Cancel</button>
+            <button class="modal-btn confirm" onclick="saveLifeEdit()">Save</button>
+        </div>
+    </div></div>
+
+    <!-- Timer Overlay -->
+    <div id="timerOverlay">
+        <div class="current-subject-title" id="timerSubjectTitle"></div>
+        <div class="timer-display" id="timerDisplay">00:00:00</div>
+        <button class="fire-btn" id="focusBtn" onmousedown="triggerEffect(event)" ontouchstart="triggerEffect(event)">FOCUS</button>
+        <button class="stop-btn" onclick="stopTimer()">Finish Session</button>
+        <p style="margin-top:30px; opacity:0.6; font-size:0.9rem; font-style:italic;">"Persistence guarantees that results are inevitable."</p>
+    </div>
+
+    <script>
+        // --- 1. IndexedDB Helper (Unchanged) ---
+        const DB_NAME = 'StudyTrackerDB'; const STORE_NAME = 'files'; let db;
+        let dbEnabled = true;
+
+        const initDB = () => new Promise((resolve, reject) => { 
+            try {
+                if (!window.indexedDB) { console.warn("IndexedDB not supported."); dbEnabled = false; resolve(null); return; }
+                const r = indexedDB.open(DB_NAME, 1); 
+                r.onupgradeneeded = (e) => { const db = e.target.result; if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME); }; 
+                r.onsuccess = (e) => { db = e.target.result; resolve(db); }; 
+                r.onerror = (e) => { console.error("IndexedDB blocked or failed:", e); dbEnabled = false; resolve(null); }; 
+            } catch (err) { console.error("IndexedDB init error:", err); dbEnabled = false; resolve(null); }
+        });
+
+        const saveFileToDB = async (id, fileData) => { 
+            if (!dbEnabled) { alert("File storage disabled (IndexedDB blocked)."); return; }
+            if (!db) await initDB(); if (!db) return;
+            return new Promise((resolve, reject) => { try { const tx = db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).put(fileData, id); tx.oncomplete = () => { showAutoSaveStatus(); updateStorageMeter(); resolve(); }; tx.onerror = () => { alert("Storage Error."); reject(tx.error); }; } catch(e) { console.error(e); reject(e); } }); 
+        };
+        const getFileFromDB = async (id) => { if (!dbEnabled || !db) return null; return new Promise((resolve, reject) => { const tx = db.transaction(STORE_NAME, 'readonly'); const r = tx.objectStore(STORE_NAME).get(id); r.onsuccess = () => resolve(r.result); r.onerror = () => resolve(null); }); };
+        const deleteFileFromDB = async (id) => { if (!dbEnabled || !db) return; const tx = db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).delete(id); tx.oncomplete = () => { showAutoSaveStatus(); updateStorageMeter(); }; };
+        const getAllFilesFromDB = async () => { if (!dbEnabled || !db) return {}; return new Promise((resolve) => { const tx = db.transaction(STORE_NAME, 'readonly'); const r = tx.objectStore(STORE_NAME).getAllKeys(); r.onsuccess = async () => { const keys = r.result; const allData = {}; for (const key of keys) { allData[key] = await getFileFromDB(key); } resolve(allData); }; r.onerror = () => resolve({}); }); };
+        const clearDB = async () => { if (!db) await initDB(); const tx = db.transaction(STORE_NAME, 'readwrite'); tx.objectStore(STORE_NAME).clear(); };
+
+        // --- Auto-Save & Config ---
+        function showAutoSaveStatus() { const i = document.getElementById('saveStatus'); i.classList.add('show'); setTimeout(() => i.classList.remove('show'), 2000); }
+        function updateStorageMeter() { navigator.storage && navigator.storage.estimate().then(e => { const used = (e.usage / (1024 * 1024)).toFixed(2); document.getElementById('storageUsedText').innerText = used + " MB"; document.getElementById('storageBarFill').style.width = Math.min((e.usage / (100 * 1024 * 1024)) * 100, 100) + "%"; }); }
+        const saveLocal = (key, data) => { localStorage.setItem(key, JSON.stringify(data)); showAutoSaveStatus(); };
+
+        // --- 2. App Logic ---
+        const defaultSubjects = [ 
+            { id: 'chi', name: '中國語文 (Chi)', color: '#b22222', dseDate: '2026-04-09', status: 'sprinting', nextExamDate: '' }, 
+            { id: 'eng', name: 'English (Eng)', color: '#4682b4', dseDate: '2026-04-10', status: 'sprinting', nextExamDate: '' }, 
+            { id: 'math', name: 'Mathematics (Math)', color: '#d4af37', dseDate: '2026-04-13', status: 'sprinting', nextExamDate: '' }, 
+            { id: 'ls', name: '公民與社會 (CS)', color: '#2e8b57', dseDate: '2026-04-14', status: 'sprinting', nextExamDate: '' }, 
+            { id: 'phy', name: 'Physics (Phy)', color: '#8a2be2', dseDate: '2026-04-22', status: 'sprinting', nextExamDate: '' }, 
+            { id: 'chem', name: 'Chemistry (Chem)', color: '#20b2aa', dseDate: '2026-04-16', status: 'sprinting', nextExamDate: '' }, 
+            { id: 'econ', name: 'Economics (Econ)', color: '#708090', dseDate: '2026-05-04', status: 'sprinting', nextExamDate: '' },
+            { id: 'm1', name: 'Math M1/M2', color: '#cd853f', dseDate: '2026-04-30', status: 'sprinting', nextExamDate: '' },
+            { id: 'bio', name: 'Biology (Bio)', color: '#32cd32', dseDate: '2026-04-20', status: 'sprinting', nextExamDate: '' },
+            { id: 'ict', name: 'ICT', color: '#00ced1', dseDate: '2026-04-24', status: 'sprinting', nextExamDate: '' }
+        ];
+
+        let subjects = JSON.parse(localStorage.getItem('customSubjects')) || defaultSubjects;
+        subjects.forEach(s => { if(!s.status) s.status = 'sprinting'; if(!s.nextExamDate) s.nextExamDate = ''; });
+
+        let mData = JSON.parse(localStorage.getItem('mWorldData')) || {}; 
+        let dseData = JSON.parse(localStorage.getItem('dseData')) || { items: [] };
+        if(dseData.groups || !dseData.items) dseData = { items: [] };
+        
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        let taskHistory = JSON.parse(localStorage.getItem('taskHistory')) || {};
+        let studyLogs = JSON.parse(localStorage.getItem('subjectLogs')) || {}; 
+        let lastResetTime = parseInt(localStorage.getItem('lastResetTime')) || 0;
+        let scheduleEvents = JSON.parse(localStorage.getItem('scheduleEvents')) || [];
+        let customFocusText = localStorage.getItem('customFocusText') || "FOCUS!";
+        let lifeList = JSON.parse(localStorage.getItem('lifeList')) || [];
+
+        // Ensure lifeList items have a type
+        lifeList.forEach(l => { if(!l.type) l.type = 'short'; });
+
+        let deleteTarget = { type: null, id: null };
+        let currentRenameId = null;
+        let currentMSubjectId = null; let currentMGroupId = null;
+        let timerState = { active: false, subjectId: null, startTime: null, elapsed: 0, interval: null };
+        let currentLang = localStorage.getItem('appLang') || 'zh';
+        let globalDseInterval = null;
+        let globalExamInterval = null;
+        
+        let currentViewMode = 'monthly';
+        let viewDate = new Date().toISOString().split('T')[0];
+        let currentCalendarDate = new Date();
+        let selectedScheduleDate = new Date().toISOString().split('T')[0];
+
+        const translations = { 
+            zh: { 
+                sidebarTitle: "📦 百寶袋", navProgress: "📊 學習進度", navSettings: "⚙️ 學習設定", navControl: "🌍 M爆世界", navDse: "📅 DSE 倒數", navHome: "🏠 主畫面", navSchedule: "📅 行程表", navExam: "🏫 校內試倒數", navLife: "📜 人生清單",
+                todayTasks: "📝 今日任務", dailyPie: "🍰 每日分佈 (%)", monthlyLine: "📈 溫習趨勢 (小時)", progressTitle: "📚 學習進度總覽", 
+                settingsTitle: "⚙️ 科目管理", addSubjectBtn: "新增科目", renameBtn: "修改", removeBtn: "刪除", deleteTitle: "確認刪除", deleteMsg: "確定要刪除嗎？", 
+                renameTitle: "修改名稱", saveBtn: "儲存", cancelBtn: "取消", deleteConfirmBtn: "刪除", saveStatus: "✅ 資料已自動儲存", 
+                dailyBreakdown: "📊 每日溫習時段 (小時)", editRecords: "✏️ 修改紀錄", monthlyTab: "📅 月覽", dailyTab: "📆 日覽",
+                todaySchedule: "📅 今日行程"
+            }, 
+            en: { 
+                sidebarTitle: "📦 Magic Bag", navProgress: "📊 Progress", navSettings: "⚙️ Settings", navControl: "🌍 Control Life", navDse: "📅 DSE Countdown", navHome: "🏠 Home", navSchedule: "📅 Schedule", navExam: "🏫 Next Exam", navLife: "📜 Bucket List",
+                todayTasks: "📝 Today's Tasks", dailyPie: "🍰 Daily Distribution (%)", monthlyLine: "📈 Monthly Trend (Hours)", progressTitle: "📚 Progress Overview", 
+                settingsTitle: "⚙️ Manage Subjects", addSubjectBtn: "Add Subject", renameBtn: "Rename", removeBtn: "Delete", deleteTitle: "Confirm Delete", deleteMsg: "Are you sure?", 
+                renameTitle: "Rename Subject", saveBtn: "Save", cancelBtn: "Cancel", deleteConfirmBtn: "Delete", saveStatus: "✅ Data Auto-Saved", 
+                dailyBreakdown: "📊 Daily Study Sessions (Hours)", editRecords: "✏️ Edit Records", monthlyTab: "📅 Monthly", dailyTab: "📆 Daily",
+                todaySchedule: "📅 Today's Schedule"
+            } 
+        };
+
+        // --- Initialization ---
+        window.onload = async () => {
+            await initDB(); 
+            checkDailyReset(); 
+            renderSidebarSubjects();
+            renderSettingsSubjects();
+            renderTaskList();
+            renderDashboardSchedule();
+            renderMSubjects();
+            renderDseContent();
+            renderDseCountdown();
+            renderExamCountdown(); 
+            renderLifeList();
+            initMonthlyChart();
+            updateClock();
+            setInterval(updateClock, 1000);
+            updateStorageMeter();
+            changeLanguage();
+            switchProgressView('monthly');
+            initSchedule();
+            // Init Focus Text Input
+            const ftInput = document.getElementById('focusTextInput');
+            if(ftInput) ftInput.value = customFocusText;
+        };
+
+        function updateFocusText() {
+            const val = document.getElementById('focusTextInput').value.trim();
+            if(val) {
+                customFocusText = val;
+                localStorage.setItem('customFocusText', val);
+                showAutoSaveStatus();
+            }
+        }
+
+        // --- 5AM Reset Logic ---
+        function checkDailyReset() {
+            const now = new Date();
+            const today5AM = new Date(); today5AM.setHours(5, 0, 0, 0);
+            if (now < today5AM) today5AM.setDate(today5AM.getDate() - 1);
+
+            if (lastResetTime < today5AM.getTime()) {
+                const dateKey = new Date(); dateKey.setDate(dateKey.getDate() - 1); 
+                const key = dateKey.toISOString().split('T')[0];
+                if(tasks.length > 0) { taskHistory[key] = [...tasks]; saveLocal('taskHistory', taskHistory); }
+                tasks = []; saveLocal('tasks', tasks);
+                lastResetTime = now.getTime(); localStorage.setItem('lastResetTime', lastResetTime);
+                renderTaskList();
+            }
+        }
+
+        // --- Navigation ---
+        function toggleSidebar(forceState) {
+            const sb = document.getElementById('sidebar'); const ov = document.getElementById('sidebarOverlay');
+            if (forceState === false) { sb.classList.remove('active'); ov.classList.remove('active'); }
+            else { sb.classList.toggle('active'); ov.classList.toggle('active'); }
+        }
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + pageId).classList.add('active');
+            if(pageId === 'progress') renderProgressView();
+            if(pageId === 'schedule') initSchedule();
+            if(pageId === 'dse-timetable') renderDseCountdown();
+            if(pageId === 'exam-countdown') renderExamCountdown();
+            if(pageId === 'life-list') renderLifeList();
+        }
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('liveTime').innerText = now.toLocaleTimeString('en-GB');
+            document.getElementById('liveDate').innerText = now.toDateString();
+        }
+        function changeLanguage() {
+            const lang = document.getElementById('languageSelect').value;
+            currentLang = lang;
+            localStorage.setItem('appLang', lang);
+            const t = translations[lang];
+            const safeTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+            safeTxt('lbl_sidebar_title', t.sidebarTitle); safeTxt('lbl_today_tasks', t.todayTasks);
+            safeTxt('tabMonthly', t.monthlyTab); safeTxt('tabDaily', t.dailyTab);
+            safeTxt('lbl_monthly_study_chart', t.monthlyLine); safeTxt('btn_nav_schedule', t.navSchedule);
+            safeTxt('lbl_today_schedule_dash', t.todaySchedule); safeTxt('btn_nav_exam', t.navExam);
+            safeTxt('btn_nav_life', t.navLife);
+        }
+
+        // --- Life List Logic (Refactored) ---
+        let currentEditingLifeIndex = null;
+        let shortLifeChart, longLifeChart, dashShortLifeChart, dashLongLifeChart;
+
+        function renderLifeCharts() {
+            // Calculate stats
+            const shortItems = lifeList.filter(l => l.type === 'short');
+            const longItems = lifeList.filter(l => l.type === 'long');
+            
+            const shortDone = shortItems.filter(l => l.done).length;
+            const shortTotal = shortItems.length;
+            const shortPct = shortTotal === 0 ? 0 : Math.round((shortDone/shortTotal)*100);
+
+            const longDone = longItems.filter(l => l.done).length;
+            const longTotal = longItems.length;
+            const longPct = longTotal === 0 ? 0 : Math.round((longDone/longTotal)*100);
+
+            // Update DOM Center Text
+            const setCenter = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = val + '%'; };
+            setCenter('pageShortLifeCenter', shortPct);
+            setCenter('pageLongLifeCenter', longPct);
+            setCenter('dashShortLifeCenter', shortPct);
+            setCenter('dashLongLifeCenter', longPct);
+
+            // Helper to create chart config
+            const createConfig = (pct) => ({
+                type: 'doughnut',
+                data: {
+                    labels: ['Done', 'Left'],
+                    datasets: [{
+                        data: [pct, 100 - pct],
+                        backgroundColor: ['#27ae60', '#eee'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '75%',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false } }
+                }
+            });
+
+            // Page Charts
+            const ctxPS = document.getElementById('pageShortLifeChart')?.getContext('2d');
+            if(ctxPS) {
+                if(shortLifeChart) shortLifeChart.destroy();
+                shortLifeChart = new Chart(ctxPS, createConfig(shortPct));
+            }
+            const ctxPL = document.getElementById('pageLongLifeChart')?.getContext('2d');
+            if(ctxPL) {
+                if(longLifeChart) longLifeChart.destroy();
+                longLifeChart = new Chart(ctxPL, createConfig(longPct));
+            }
+
+            // Dashboard Charts
+            const ctxDS = document.getElementById('dashShortLifeChart')?.getContext('2d');
+            if(ctxDS) {
+                if(dashShortLifeChart) dashShortLifeChart.destroy();
+                dashShortLifeChart = new Chart(ctxDS, createConfig(shortPct));
+            }
+            const ctxDL = document.getElementById('dashLongLifeChart')?.getContext('2d');
+            if(ctxDL) {
+                if(dashLongLifeChart) dashLongLifeChart.destroy();
+                dashLongLifeChart = new Chart(ctxDL, createConfig(longPct));
+            }
+        }
+
+        function renderLifeList() {
+            renderLifeCharts(); // Update charts first
+
+            const renderSection = (containerId, type, isCompleted) => {
+                const container = document.getElementById(containerId);
+                if(!container) return;
+                container.innerHTML = '';
+                
+                // Filter items
+                // Note: we need original index for editing/deleting
+                const filtered = lifeList.map((item, index) => ({...item, originalIndex: index}))
+                                         .filter(item => item.type === type && item.done === isCompleted);
+                
+                if(filtered.length === 0) {
+                    container.innerHTML = `<p style="color:#ccc; font-style:italic; font-size:0.9rem;">Empty</p>`;
+                    return;
+                }
+
+                filtered.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'life-list-item' + (item.done ? ' completed-item' : '');
+                    div.innerHTML = `
+                        <div style="display:flex; align-items:center; flex:1;">
+                            <input type="checkbox" class="life-checkbox" ${item.done ? 'checked' : ''} onchange="toggleLifeGoal(${item.originalIndex})">
+                            <span class="life-text ${item.done ? 'completed' : ''}">${item.goal}</span>
+                            ${item.age ? `<span class="life-age-badge">Before ${item.age}</span>` : ''}
+                        </div>
+                        <div class="life-actions">
+                             <button onclick="editLifeGoal(${item.originalIndex})">✎</button>
+                            <button onclick="confirmDeleteLifeGoal(${item.originalIndex})">✕</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            };
+
+            renderSection('shortLifeListContainer', 'short', false);
+            renderSection('shortLifeCompletedContainer', 'short', true);
+            renderSection('longLifeListContainer', 'long', false);
+            renderSection('longLifeCompletedContainer', 'long', true);
+        }
+
+        function addLifeGoal() {
+            const goal = document.getElementById('lifeGoalInput').value.trim();
+            const age = document.getElementById('lifeAgeInput').value;
+            const type = document.getElementById('lifeTypeInput').value;
+            if(!goal) return;
+            lifeList.push({ goal, age, type, done: false });
+            saveLocal('lifeList', lifeList);
+            document.getElementById('lifeGoalInput').value = '';
+            document.getElementById('lifeAgeInput').value = '';
+            renderLifeList();
+        }
+        function toggleLifeGoal(index) {
+            lifeList[index].done = !lifeList[index].done;
+            saveLocal('lifeList', lifeList);
+            renderLifeList();
+        }
+        
+        function confirmDeleteLifeGoal(index) {
+             deleteTarget = { type: 'life', index: index };
+             document.getElementById('lbl_delete_title').innerText = "Delete Goal";
+             document.getElementById('lbl_delete_msg').innerText = "Remove this life goal?";
+             document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function editLifeGoal(index) {
+            currentEditingLifeIndex = index;
+            const item = lifeList[index];
+            document.getElementById('editLifeGoalInput').value = item.goal;
+            document.getElementById('editLifeAgeInput').value = item.age || '';
+            document.getElementById('editLifeTypeInput').value = item.type || 'short';
+            document.getElementById('lifeEditModal').classList.add('active');
+        }
+        function saveLifeEdit() {
+            if (currentEditingLifeIndex !== null) {
+                const goal = document.getElementById('editLifeGoalInput').value.trim();
+                const age = document.getElementById('editLifeAgeInput').value;
+                const type = document.getElementById('editLifeTypeInput').value;
+                if(goal) {
+                    lifeList[currentEditingLifeIndex].goal = goal;
+                    lifeList[currentEditingLifeIndex].age = age;
+                    lifeList[currentEditingLifeIndex].type = type;
+                    saveLocal('lifeList', lifeList);
+                    renderLifeList();
+                }
+            }
+            closeLifeEditModal();
+        }
+        function closeLifeEditModal() {
+            document.getElementById('lifeEditModal').classList.remove('active');
+            currentEditingLifeIndex = null;
+        }
+
+        // --- Schedule / Calendar Logic ---
+        function initSchedule() { renderCalendar(); renderScheduleList(selectedScheduleDate); }
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid'); const title = document.getElementById('calendarTitle');
+            if(!grid || !title) return; grid.innerHTML = '';
+            const year = currentCalendarDate.getFullYear(); const month = currentCalendarDate.getMonth();
+            title.innerText = new Date(year, month).toLocaleDateString(currentLang === 'zh' ? 'zh-Hant' : 'en-US', { year: 'numeric', month: 'long' });
+            const days = currentLang === 'zh' ? ['日','一','二','三','四','五','六'] : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            days.forEach(d => { const dh = document.createElement('div'); dh.className = 'calendar-day-header'; dh.innerText = d; grid.appendChild(dh); });
+            const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay();
+            for(let i=firstDay-1; i>=0; i--) { const d=document.createElement('div'); d.className='calendar-day other-month'; grid.appendChild(d); }
+            
+            const getEventsForDate = (dateStr) => {
+                let hasEvent = false;
+                if(scheduleEvents.some(e => e.date === dateStr)) hasEvent = true;
+                if(!hasEvent) {
+                    if(subjects.some(s => (s.dseDate && s.dseDate.startsWith(dateStr)) || (s.nextExamDate && s.nextExamDate.startsWith(dateStr)))) {
+                        hasEvent = true;
+                    }
+                }
+                return hasEvent;
+            };
+
+            for(let i=1; i<=daysInMonth; i++) {
+                const d = document.createElement('div'); d.className = 'calendar-day';
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                d.innerHTML = `<span>${i}</span>`;
+                if(getEventsForDate(dateStr)) d.innerHTML += `<div class="day-marker"></div>`;
+                if(dateStr === new Date().toISOString().split('T')[0]) d.classList.add('today');
+                if(dateStr === selectedScheduleDate) d.classList.add('selected');
+                d.onclick = () => { selectedScheduleDate = dateStr; renderCalendar(); renderScheduleList(dateStr); };
+                grid.appendChild(d);
+            }
+        }
+        function changeCalendarMonth(delta) { currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta); renderCalendar(); }
+        
+        function getDailyEvents(dateStr) {
+            let events = scheduleEvents.filter(e => e.date === dateStr).map(e => ({...e, isSystem: false}));
+            subjects.forEach(s => {
+                if(s.dseDate && s.dseDate.startsWith(dateStr)) {
+                    const timePart = s.dseDate.split('T')[1] || '08:30';
+                    events.push({ id: `dse_${s.id}`, date: dateStr, title: `🔥 DSE: ${s.name}`, time: timePart, startTime: timePart, color: s.color, isSystem: true });
+                }
+                if(s.nextExamDate && s.nextExamDate.startsWith(dateStr)) {
+                    const timePart = s.nextExamDate.split('T')[1] || '08:30';
+                    events.push({ id: `exam_${s.id}`, date: dateStr, title: `🏫 Exam: ${s.name}`, time: timePart, startTime: timePart, color: s.color, isSystem: true });
+                }
+            });
+            return events.sort((a,b) => (a.startTime||a.time).localeCompare(b.startTime||b.time));
+        }
+
+        function renderScheduleList(date) {
+            const container = document.getElementById('scheduleList'); if(!container) return;
+            document.getElementById('selectedDateDisplay').innerText = date; container.innerHTML = '';
+            const events = getDailyEvents(date);
+            if(events.length === 0) { container.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px;">無行程</p>`; return; }
+            events.forEach(e => {
+                const item = document.createElement('div'); item.className = 'schedule-item'; item.style.borderLeftColor = e.color || 'var(--gold-accent)';
+                let timeDisplay = e.time; if(e.startTime && e.endTime) timeDisplay = `${e.startTime} - ${e.endTime}`; else if (e.startTime) timeDisplay = e.startTime;
+                let deleteBtn = '';
+                if(!e.isSystem) deleteBtn = `<div class="schedule-actions"><button onclick="confirmDeleteScheduleEvent('${e.id}')">✕</button></div>`;
+                item.innerHTML = `<div class="schedule-time">${timeDisplay}</div><div class="schedule-info"><div class="schedule-title">${e.title}</div></div>${deleteBtn}`;
+                container.appendChild(item);
+            });
+        }
+        function addScheduleEvent() {
+            const title = document.getElementById('scheduleTitleInput').value.trim();
+            const startTime = document.getElementById('scheduleStartTimeInput').value;
+            const endTime = document.getElementById('scheduleEndTimeInput').value;
+            const color = document.getElementById('scheduleColorInput').value;
+            if(!title || !startTime || !endTime) return alert('請輸入標題、開始和結束時間');
+            scheduleEvents.push({ id: Date.now().toString(), date: selectedScheduleDate, title, startTime, endTime, color });
+            saveLocal('scheduleEvents', scheduleEvents);
+            document.getElementById('scheduleTitleInput').value = '';
+            renderScheduleList(selectedScheduleDate); renderCalendar(); renderDashboardSchedule();
+        }
+        
+        function confirmDeleteScheduleEvent(id) {
+             deleteTarget = { type: 'schedule', id: id };
+             document.getElementById('lbl_delete_title').innerText = "Delete Event";
+             document.getElementById('lbl_delete_msg').innerText = "Remove this schedule item?";
+             document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function renderDashboardSchedule() {
+            const container = document.getElementById('dashboardScheduleList'); if(!container) return; container.innerHTML = '';
+            const today = new Date().toISOString().split('T')[0];
+            const events = getDailyEvents(today);
+            if(events.length === 0) { container.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px;">無行程</p>`; return; }
+            events.forEach(e => {
+                let timeDisplay = e.time; if(e.startTime && e.endTime) timeDisplay = `${e.startTime} - ${e.endTime}`; else if (e.startTime) timeDisplay = e.startTime;
+                container.innerHTML += `<div class="schedule-item" style="border-left-color:${e.color||'var(--gold-accent)'}; padding:8px;"><div class="schedule-time" style="font-size:0.8rem; min-width:75px;">${timeDisplay}</div><div class="schedule-info"><div class="schedule-title" style="font-size:0.95rem;">${e.title}</div></div></div>`;
+            });
+        }
+
+        // --- Progress & Chart Logic ---
+        function switchProgressView(mode) { currentViewMode = mode; renderProgressView(); 
+            document.querySelectorAll('.progress-tab').forEach(b => b.classList.remove('active'));
+            document.getElementById(mode === 'monthly' ? 'tabMonthly' : 'tabDaily').classList.add('active');
+            document.getElementById('viewMonthly').style.display = mode === 'monthly' ? 'block' : 'none';
+            document.getElementById('viewDaily').style.display = mode === 'daily' ? 'block' : 'none';
+        }
+        function changeDate(delta) { const d = new Date(viewDate); d.setDate(d.getDate() + delta); viewDate = d.toISOString().split('T')[0]; renderProgressView(); }
+        function renderProgressView() { if (currentViewMode === 'monthly') renderTrendChart(); else { document.getElementById('currentDateDisplay').innerText = viewDate; renderDailyView(); } }
+        let trendChart, dailyPieChart, homeLineChart;
+        function renderTrendChart() {
+            const ctx = document.getElementById('trendLineChart').getContext('2d'); if (trendChart) trendChart.destroy();
+            const labels = []; const data = [];
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i); const iso = d.toISOString().split('T')[0];
+                labels.push(iso.slice(5)); let t = 0; if (studyLogs[iso]) Object.values(studyLogs[iso]).forEach(v => t+=v); data.push((t/3600).toFixed(1));
+            }
+            trendChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Hours', data, borderColor: '#1f3c3d', backgroundColor: 'rgba(31,60,61,0.1)', fill: true, tension: 0.3 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } } });
+        }
+        function renderDailyView() {
+            const log = studyLogs[viewDate] || {}; let totalSec = 0; const bLabels = []; const bData = []; const bColors = [];
+            subjects.forEach(s => { const sec = log[s.id] || 0; totalSec += sec; if(sec > 0) { bLabels.push(s.name); bData.push(parseFloat((sec/3600).toFixed(2))); bColors.push(s.color); } });
+            document.getElementById('dayTotalHours').innerText = (totalSec/3600).toFixed(1)+'h';
+            
+            const chartCanvas = document.getElementById('dailySubjectChart');
+            const noDataMsg = document.getElementById('dailyChartNoData');
+            
+            if (bData.length > 0) {
+                chartCanvas.style.display = 'block'; noDataMsg.style.display = 'none';
+                const ctx = chartCanvas.getContext('2d'); 
+                if (dailyPieChart) dailyPieChart.destroy();
+                const plugins = []; if (typeof ChartDataLabels !== 'undefined') plugins.push(ChartDataLabels);
+                dailyPieChart = new Chart(ctx, { type: 'doughnut', data: { labels: bLabels, datasets: [{ data: bData, backgroundColor: bColors }] }, options: { maintainAspectRatio: false, plugins: { datalabels: { formatter: (value, ctx) => { let sum = 0; ctx.chart.data.datasets[0].data.map(d => sum += d); return sum > 0 ? (value*100/sum).toFixed(1)+"%" : "0%"; }, color: '#fff', font: { weight: 'bold' } } } }, plugins: plugins });
+            } else {
+                if (dailyPieChart) dailyPieChart.destroy();
+                chartCanvas.style.display = 'none'; noDataMsg.style.display = 'block';
+            }
+
+            const todayISO = new Date().toISOString().split('T')[0]; const dTasks = (viewDate === todayISO) ? tasks : (taskHistory[viewDate] || []);
+            const completed = dTasks.filter(t=>t.done).length; const rate = dTasks.length > 0 ? Math.round((completed/dTasks.length)*100) : 0;
+            document.getElementById('dayTaskCompletion').innerText = rate + '%';
+            const hl = document.getElementById('historyTaskList'); hl.innerHTML = '';
+            if(dTasks.length === 0) hl.innerHTML = '<li style="justify-content:center;color:#999;">No records</li>';
+            dTasks.forEach(t => { hl.innerHTML += `<li><span class="${t.done?'done':''}" style="width:100%; text-decoration: ${t.done ? 'line-through' : 'none'}; color: ${t.done ? '#999' : 'inherit'};">${t.text}</span><span>${t.done?'✅':'⬜'}</span></li>`; });
+            
+            const ec = document.getElementById('editorContainer'); ec.innerHTML = '';
+            subjects.forEach(s => { 
+                const time = log[s.id] || 0; const h = Math.floor(time / 3600); const m = Math.floor((time % 3600) / 60); const sec = time % 60;
+                ec.innerHTML += `<div class="editor-row" style="padding: 10px 0; border-bottom: 1px dashed #ccc;"><div class="editor-label" style="flex:1; display:flex; align-items:center; gap:8px; font-weight:bold;"><span class="color-dot" style="background:${s.color}; width:12px; height:12px; border-radius:50%; display:inline-block;"></span>${s.name}</div><div class="editor-inputs" style="display:flex; align-items:center; gap:5px;"><input type="number" class="editor-input-num" id="edit_h_${s.id}" value="${h}" min="0" style="width:50px; padding:5px; border:1px solid #ccc; border-radius:3px; text-align:center;"> h <input type="number" class="editor-input-num" id="edit_m_${s.id}" value="${m}" min="0" max="59" style="width:50px; padding:5px; border:1px solid #ccc; border-radius:3px; text-align:center;"> m <input type="number" class="editor-input-num" id="edit_s_${s.id}" value="${sec}" min="0" max="59" style="width:50px; padding:5px; border:1px solid #ccc; border-radius:3px; text-align:center;"> s</div></div>`; 
+            });
+        }
+        function saveEditorData() { 
+            if(!studyLogs[viewDate]) studyLogs[viewDate] = {}; subjects.forEach(s => { const h = parseInt(document.getElementById(`edit_h_${s.id}`).value) || 0; const m = parseInt(document.getElementById(`edit_m_${s.id}`).value) || 0; const sec = parseInt(document.getElementById(`edit_s_${s.id}`).value) || 0; studyLogs[viewDate][s.id] = (h * 3600) + (m * 60) + sec; }); 
+            saveLocal('subjectLogs', studyLogs); renderProgressView(); alert('Saved!'); 
+        }
+        function initMonthlyChart() {
+            const ctx = document.getElementById('monthlyChart').getContext('2d'); if(homeLineChart) homeLineChart.destroy();
+            const labels = []; const data = [];
+            for(let i=6; i>=0; i--) { const d = new Date(); d.setDate(d.getDate()-i); const iso = d.toISOString().split('T')[0]; labels.push(iso.slice(5)); let t=0; if(studyLogs[iso]) Object.values(studyLogs[iso]).forEach(v=>t+=v); data.push((t/3600).toFixed(1)); }
+            homeLineChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label:'Hours', data, borderColor:'#1f3c3d', tension:0.3 }] }, options: { maintainAspectRatio:false, scales:{y:{display:false}} } });
+        }
+
+        // --- Countdown Logic ---
+        function renderDseCountdown() {
+            const g = document.getElementById('dseCountdownGrid'); if(!g) return; g.innerHTML = '';
+            const now = new Date(); let minDate = null;
+            subjects.forEach(s => {
+                if(s.dseDate) {
+                    const examDate = new Date(s.dseDate);
+                    if(examDate > now && (!minDate || examDate < minDate)) minDate = examDate;
+                    const diff = Math.ceil((examDate - now) / (1000*60*60*24));
+                    let displayDate = s.dseDate.replace('T', ' ');
+                    if(diff > -30) {
+                        const txt = diff > 0 ? diff : "Ended";
+                        const isRelaxed = s.status === 'relaxed';
+                        g.innerHTML += `<div class="countdown-card"><div style="font-weight:bold;color:${s.color}">${s.name}</div><div class="countdown-days">${txt}</div><div class="countdown-label">${diff>0?'Days Left':''}</div><div class="countdown-date">${displayDate}</div><button class="countdown-edit-btn" onclick="openRenameModal('${s.id}')">✎</button><button class="status-toggle-btn ${isRelaxed ? 'status-relaxed' : 'status-sprinting'}" onclick="toggleSubjectStatus('${s.id}')">${isRelaxed ? '☕ 輕鬆M左' : '🔥 衝刺中'}</button></div>`;
+                    }
+                }
+            });
+            startGlobalTimer(minDate, 'globalDseTimer', 'dashboardDseTimer');
+        }
+
+        // --- New Exam Countdown Logic ---
+        function renderExamCountdown() {
+            const g = document.getElementById('examCountdownGrid'); if(!g) return; g.innerHTML = '';
+            const now = new Date(); let minDate = null;
+            subjects.forEach(s => {
+                if(s.nextExamDate) {
+                    const examDate = new Date(s.nextExamDate);
+                    if(examDate > now && (!minDate || examDate < minDate)) minDate = examDate;
+                    let diffMs = examDate - now; let diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                    let displayDate = s.nextExamDate.replace('T', ' ');
+
+                    if(diffDays > -30) {
+                        const txt = diffDays > 0 ? diffDays : "Ended";
+                        const isRelaxed = s.status === 'relaxed';
+                        g.innerHTML += `<div class="countdown-card"><div style="font-weight:bold;color:${s.color}">${s.name}</div><div class="countdown-days">${txt}</div><div class="countdown-label">${diffDays>0?'Days Left':''}</div><div class="countdown-date">${displayDate}</div><button class="countdown-edit-btn" onclick="openRenameModal('${s.id}')">✎</button><button class="status-toggle-btn ${isRelaxed ? 'status-relaxed' : 'status-sprinting'}" onclick="toggleSubjectStatus('${s.id}')">${isRelaxed ? '☕ 輕鬆M左' : '🔥 衝刺中'}</button></div>`;
+                    }
+                }
+            });
+            startGlobalTimer(minDate, 'globalExamTimer', null);
+        }
+
+        function startGlobalTimer(minDate, elementId1, elementId2) {
+            const update = () => {
+                const nowT = new Date(); let text = "--:--:--:--";
+                if(minDate) {
+                    const dist = minDate - nowT;
+                    if(dist < 0) text = "EXAM DAY!";
+                    else {
+                        const d = Math.floor(dist / (1000 * 60 * 60 * 24));
+                        const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const m = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
+                        const sec = Math.floor((dist % (1000 * 60)) / 1000);
+                        text = `${d}d ${h.toString().padStart(2,'0')}h ${m.toString().padStart(2,'0')}m ${sec.toString().padStart(2,'0')}s`;
+                    }
+                }
+                const e1 = document.getElementById(elementId1); if(e1) e1.innerText = text;
+                const e2 = elementId2 ? document.getElementById(elementId2) : null; if(e2) e2.innerText = text;
+            };
+            update();
+            if(elementId1 === 'globalDseTimer') { if(globalDseInterval) clearInterval(globalDseInterval); globalDseInterval = setInterval(update, 1000); } 
+            else { if(globalExamInterval) clearInterval(globalExamInterval); globalExamInterval = setInterval(update, 1000); }
+        }
+
+        function toggleSubjectStatus(id) { const s = subjects.find(x => x.id === id); if(s) { s.status = (s.status === 'relaxed') ? 'sprinting' : 'relaxed'; saveLocal('customSubjects', subjects); renderDseCountdown(); renderExamCountdown(); } }
+        function resetDseDates() { if(confirm("Reset to default 2026 dates?")) { defaultSubjects.forEach(ds => { const ex = subjects.find(s=>s.id===ds.id); if(ex) ex.dseDate = ds.dseDate; }); saveLocal('customSubjects', subjects); renderDseCountdown(); } }
+
+        // --- Standard Management (Updated: Drag & Drop) ---
+        function renderSidebarSubjects() { const c = document.getElementById('subjectList'); c.innerHTML = ''; const today = new Date().toISOString().split('T')[0]; subjects.forEach(s => { const btn = document.createElement('button'); btn.className = 'subject-btn'; btn.onclick = () => openTimer(s.id); const time = (studyLogs[today] && studyLogs[today][s.id]) ? Math.floor(studyLogs[today][s.id]/60) + 'm' : '0m'; btn.innerHTML = `<span style="border-left:4px solid ${s.color}; padding-left:10px;">${s.name}</span><span class="subject-time">${time}</span>`; c.appendChild(btn); }); }
+        
+        function renderSettingsSubjects() { 
+            const l = document.getElementById('settingsSubjectList'); l.innerHTML = ''; 
+            subjects.forEach((s, i) => { 
+                l.innerHTML += `<li class="settings-item" draggable="true" ondragstart="dragStart(event, ${i})" ondragover="dragOver(event)" ondrop="drop(event, ${i})"><div style="display:flex; align-items:center;"><span style="cursor:grab; font-size:1.2rem; color:#ccc; margin-right:10px;">☰</span><span class="color-dot" style="background:${s.color}"></span><b>${s.name}</b></div><div><button class="action-icon-btn" onclick="openRenameModal('${s.id}')">✎</button><button class="action-icon-btn" onclick="confirmDeleteSubject('${s.id}')" style="color:darkred;">🗑</button></div></li>`; 
+            }); 
+        }
+
+        let draggedIndex = null;
+        function dragStart(e, index) { draggedIndex = index; e.dataTransfer.effectAllowed = 'move'; e.target.classList.add('dragging'); }
+        function dragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+        function drop(e, index) {
+            e.preventDefault(); document.querySelector('.dragging').classList.remove('dragging');
+            if (draggedIndex !== index) {
+                const item = subjects.splice(draggedIndex, 1)[0]; subjects.splice(index, 0, item);
+                saveLocal('customSubjects', subjects); renderSettingsSubjects(); renderSidebarSubjects(); renderDseCountdown(); renderExamCountdown(); renderMSubjects(); initMonthlyChart();
+            }
+        }
+
+        function addNewSubject() { const n = document.getElementById('newSubjectName').value.trim(); const c = document.getElementById('newSubjectColor').value; if(!n) return; const id = 'sub_' + Date.now(); subjects.push({ id, name: n, color: c, dseDate: '' }); saveLocal('customSubjects', subjects); document.getElementById('newSubjectName').value = ''; renderSidebarSubjects(); renderSettingsSubjects(); renderDseCountdown(); }
+        
+        function openRenameModal(id) { currentRenameId = id; const s = subjects.find(x => x.id === id); document.getElementById('renameInput').value = s.name; let dseVal = s.dseDate || ''; if(dseVal && dseVal.length === 10) dseVal += 'T08:30'; document.getElementById('renameDateInput').value = dseVal; document.getElementById('nextExamDateInput').value = s.nextExamDate || ''; document.getElementById('renameModal').classList.add('active'); }
+        document.getElementById('btn_confirm_rename').onclick = () => { const s = subjects.find(x => x.id === currentRenameId); if(s) { s.name = document.getElementById('renameInput').value; s.dseDate = document.getElementById('renameDateInput').value; s.nextExamDate = document.getElementById('nextExamDateInput').value; saveLocal('customSubjects', subjects); renderSidebarSubjects(); renderSettingsSubjects(); renderDseCountdown(); renderExamCountdown(); renderDashboardSchedule(); } closeRenameModal(); };
+        function closeRenameModal() { document.getElementById('renameModal').classList.remove('active'); }
+        
+        // Universal Delete Handler (Replaces native confirm)
+        function confirmDeleteSubject(id) {
+             deleteTarget = { type: 'subject', id: id };
+             document.getElementById('lbl_delete_title').innerText = "Delete Subject";
+             document.getElementById('lbl_delete_msg').innerText = "Delete this subject and all its data?";
+             document.getElementById('deleteModal').classList.add('active');
+        }
+
+        document.getElementById('btn_confirm_delete').onclick = () => {
+            const t = deleteTarget;
+            if (t.type === 'subject') {
+                subjects = subjects.filter(s => s.id !== t.id);
+                saveLocal('customSubjects', subjects);
+                renderSettingsSubjects(); renderSidebarSubjects(); renderDseCountdown(); renderExamCountdown();
+            } else if (t.type === 'life') {
+                lifeList.splice(t.index, 1);
+                saveLocal('lifeList', lifeList);
+                renderLifeList();
+            } else if (t.type === 'group') {
+                delete mData[currentMSubjectId][t.id];
+                saveLocal('mWorldData', mData);
+                renderMGroups();
+            } else if (t.type === 'file') {
+                 mData[currentMSubjectId][t.secondaryId] = mData[currentMSubjectId][t.secondaryId].filter(x => x !== t.id);
+                 saveLocal('mWorldData', mData);
+                 renderMContent();
+            } else if (t.type === 'schedule') {
+                 scheduleEvents = scheduleEvents.filter(e => e.id !== t.id);
+                 saveLocal('scheduleEvents', scheduleEvents);
+                 renderScheduleList(selectedScheduleDate); renderCalendar(); renderDashboardSchedule();
+            }
+            document.getElementById('deleteModal').classList.remove('active');
+            closeGroupActionModal(); 
+        };
+        function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('active'); }
+
+        function renderTaskList() { const l = document.getElementById('taskList'); l.innerHTML = ''; tasks.forEach(t => { l.innerHTML += `<li><span class="${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.text}</span><button onclick="deleteTask(${t.id})" style="color:red;border:none;background:none;">✕</button></li>`; }); }
+        function addTask() { const v = document.getElementById('taskInput').value.trim(); if(!v) return; tasks.push({ id: Date.now(), text: v, done: false }); saveLocal('tasks', tasks); document.getElementById('taskInput').value = ''; renderTaskList(); }
+        function toggleTask(id) { const t = tasks.find(x => x.id === id); if(t) t.done = !t.done; saveLocal('tasks', tasks); renderTaskList(); }
+        function deleteTask(id) { tasks = tasks.filter(x => x.id !== id); saveLocal('tasks', tasks); renderTaskList(); }
+
+        function openTimer(sid) { const s = subjects.find(x => x.id === sid); timerState.subjectId = sid; document.getElementById('timerSubjectTitle').innerText = s.name; document.getElementById('timerOverlay').classList.add('active'); document.getElementById('timerDisplay').innerText = "00:00:00"; timerState.elapsed = 0; timerState.active = false; }
+        
+        function triggerEffect(e) {
+            const t = document.createElement('div'); t.className = 'pop-text'; t.innerText = customFocusText;
+            t.style.left = e.clientX + 'px'; t.style.top = e.clientY + 'px'; document.body.appendChild(t); setTimeout(() => t.remove(), 1000); 
+            if(!timerState.active) { timerState.active = true; timerState.startTime = Date.now() - (timerState.elapsed * 1000); timerState.interval = setInterval(() => { const diff = Math.floor((Date.now() - timerState.startTime) / 1000); timerState.elapsed = diff; const h = Math.floor(diff / 3600).toString().padStart(2,'0'); const m = Math.floor((diff % 3600) / 60).toString().padStart(2,'0'); const s = (diff % 60).toString().padStart(2,'0'); document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`; }, 1000); } 
+        }
+        
+        function stopTimer() { if(timerState.interval) clearInterval(timerState.interval); if(timerState.elapsed > 0) { const today = new Date().toISOString().split('T')[0]; if(!studyLogs[today]) studyLogs[today] = {}; if(!studyLogs[today][timerState.subjectId]) studyLogs[today][timerState.subjectId] = 0; studyLogs[today][timerState.subjectId] += timerState.elapsed; saveLocal('subjectLogs', studyLogs); renderSidebarSubjects(); initMonthlyChart(); } timerState.active = false; document.getElementById('timerOverlay').classList.remove('active'); }
+
+        function renderMSubjects() { const g = document.getElementById('mSubjectGrid'); g.innerHTML = ''; subjects.forEach(s => { g.innerHTML += `<div class="folder-item" onclick="openMLevel2('${s.id}')"><span class="folder-icon">📂</span><span class="folder-name">${s.name}</span><div class="group-actions"></div></div>`; }); }
+        function openMLevel2(sid) { currentMSubjectId = sid; document.getElementById('mCurrentSubjectTitle').innerText = subjects.find(s=>s.id===sid).name; document.getElementById('mLevel1').style.display='none'; document.getElementById('mLevel2').style.display='block'; renderMGroups(); }
+        function renderMGroups() { 
+            const g = document.getElementById('mGroupGrid'); g.innerHTML = ''; const grps = mData[currentMSubjectId] || {}; 
+            Object.keys(grps).forEach(k => { 
+                const d = document.createElement('div'); d.className = 'folder-item';
+                // Direct delete button on folder
+                d.innerHTML = `<span class="folder-icon">📁</span><span class="folder-name">${k}</span>
+                <div class="group-actions">
+                    <button class="group-btn" onclick="openGroupActionModal('${k}', event)">✎</button>
+                    <button class="group-btn" onclick="confirmDeleteGroup('${k}', event)" style="color:darkred; border-color:darkred;">🗑</button>
+                </div>`;
+                d.onclick = (e) => { 
+                    if(e.target.closest('.group-btn')) return; // Prevent folder open if btn clicked
+                    openMLevel3(k); 
+                };
+                g.appendChild(d);
+            }); 
+        }
+        function openMLevel3(gid) { currentMGroupId = gid; document.getElementById('mCurrentGroupTitle').innerText = gid; document.getElementById('mLevel2').style.display='none'; document.getElementById('mLevel3').style.display='block'; renderMContent(); }
+        function addNewGroup() { const n = document.getElementById('newGroupName').value.trim(); if(!n) return; if(!mData[currentMSubjectId]) mData[currentMSubjectId] = {}; mData[currentMSubjectId][n] = []; saveLocal('mWorldData', mData); document.getElementById('newGroupName').value = ''; renderMGroups(); }
+        
+        let editingGroup = null;
+        function openGroupActionModal(groupName, e) {
+            if(e) e.stopPropagation();
+            editingGroup = groupName;
+            document.getElementById('editGroupNameInput').value = groupName;
+            document.getElementById('groupActionModal').classList.add('active');
+        }
+        function closeGroupActionModal() { document.getElementById('groupActionModal').classList.remove('active'); editingGroup = null; }
+        
+        function saveGroupRename() {
+            const newName = document.getElementById('editGroupNameInput').value.trim();
+            if(newName && newName !== editingGroup) {
+                const data = mData[currentMSubjectId];
+                if(data[newName]) { alert("Group name already exists!"); return; }
+                data[newName] = data[editingGroup];
+                delete data[editingGroup];
+                saveLocal('mWorldData', mData);
+                renderMGroups();
+            }
+            closeGroupActionModal();
+        }
+        
+        // Modal based delete for group
+        function confirmDeleteGroup(groupName, e) {
+            if(e) e.stopPropagation();
+            const name = groupName || editingGroup;
+            deleteTarget = { type: 'group', id: name };
+            document.getElementById('lbl_delete_title').innerText = "Delete Group";
+            document.getElementById('lbl_delete_msg').innerText = `Delete "${name}" and all files inside?`;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        async function renderMContent() { const g = document.getElementById('mContentGrid'); g.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#999;">Loading...</div>'; const fileIds = mData[currentMSubjectId][currentMGroupId] || []; g.innerHTML = ''; if(!dbEnabled) { g.innerHTML = '<p style="color:red; grid-column:1/-1;">Database disabled.</p>'; return; } for(let i=0; i<fileIds.length; i++) { const file = await getFileFromDB(fileIds[i]); if(!file) continue; let content = file.type.startsWith('image') ? `<img src="${file.data}">` : `<div class="gallery-pdf-icon">📄</div><div class="gallery-pdf-text">${file.name}</div>`; const div = document.createElement('div'); div.className = 'gallery-item'; div.innerHTML = `<div class="gallery-item-content">${content}</div><button class="delete-file-btn" onclick="confirmDeleteMFile('${fileIds[i]}', event)">✕</button>`; div.onclick = () => openFile(file); g.appendChild(div); } }
+        async function handleFileUpload(input) { if(!dbEnabled) { alert("Database blocked."); return; } const file = input.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = async (e) => { const id = 'file_' + Date.now(); await saveFileToDB(id, { id, name: file.name, type: file.type, data: e.target.result }); if(!mData[currentMSubjectId][currentMGroupId]) mData[currentMSubjectId][currentMGroupId] = []; mData[currentMSubjectId][currentMGroupId].push(id); saveLocal('mWorldData', mData); renderMContent(); input.value = ''; }; reader.readAsDataURL(file); }
+        
+        function confirmDeleteMFile(fid, e) {
+            e.stopPropagation();
+            deleteTarget = { type: 'file', id: fid, secondaryId: currentMGroupId };
+            document.getElementById('lbl_delete_title').innerText = "Delete File";
+            document.getElementById('lbl_delete_msg').innerText = "Delete this file?";
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function goBackToLevel1() { document.getElementById('mLevel2').style.display='none'; document.getElementById('mLevel1').style.display='block'; }
+        function goBackToLevel2() { document.getElementById('mLevel3').style.display='none'; document.getElementById('mLevel2').style.display='block'; }
+        
+        async function renderDseContent() { const g = document.getElementById('dseContentGrid'); g.innerHTML = ''; const fileIds = dseData.items || []; if(!dbEnabled) { g.innerHTML = '<p style="color:#999;">Storage Unavailable</p>'; return; } for(let i=0; i<fileIds.length; i++) { const file = await getFileFromDB(fileIds[i]); if(!file) continue; let content = file.type.startsWith('image') ? `<img src="${file.data}">` : `<div class="gallery-pdf-icon">📄</div>`; const div = document.createElement('div'); div.className = 'gallery-item'; div.innerHTML = `<div class="gallery-item-content">${content}</div>`; div.onclick = () => openFile(file); g.appendChild(div); } }
+        async function handleDseFileUpload(input) { if(!dbEnabled) { alert("Storage blocked."); return; } const file = input.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = async (e) => { const id = 'dse_' + Date.now(); await saveFileToDB(id, { id, name: file.name, type: file.type, data: e.target.result }); dseData.items.push(id); saveLocal('dseData', dseData); renderDseContent(); }; reader.readAsDataURL(file); }
+        function openFile(file) { const c = document.getElementById('lightboxContent'); const dl = document.getElementById('lightboxDownloadBtn'); c.innerHTML = ''; if (file.type === 'application/pdf') { c.innerHTML = '<p style="color:white;">Previewing PDF...</p><iframe style="width:100%;height:100%;border:none;" src="' + file.data + '"></iframe>'; } else if (file.type.startsWith('image')) { c.innerHTML = `<img src="${file.data}">`; } else { c.innerHTML = `<p style="color:white;">File type not supported for preview.</p>`; } dl.style.display = 'inline-block'; dl.href = file.data; dl.download = file.name; document.getElementById('fileViewer').classList.add('active'); }
+        function closeFileViewer() { document.getElementById('fileViewer').classList.remove('active'); }
+
+        // --- Sound Controls (New) ---
+        function toggleNoise(type) {
+            const btn = document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1));
+            const audio = document.getElementById('audio' + type.charAt(0).toUpperCase() + type.slice(1));
+            
+            try {
+                if (audio.paused) {
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(_ => { btn.classList.add('playing'); }).catch(error => { console.error("Audio play failed:", error); alert("無法播放音效 (Audio Playback Error): " + error.message + "\n請嘗試使用其他瀏覽器或檢查音效設定。"); btn.classList.remove('playing'); });
+                    }
+                } else { audio.pause(); btn.classList.remove('playing'); }
+            } catch(e) { console.error(e); }
+        }
+
+        async function exportData() { const allFiles = await getAllFilesFromDB(); const bundle = { subjects, tasks, taskHistory, studyLogs, mData, dseData, scheduleEvents, lifeList, files: allFiles, lastResetTime }; const blob = new Blob([JSON.stringify(bundle)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'study_backup_full.json'; a.click(); }
+        function importData(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = async (e) => { try { const d = JSON.parse(e.target.result); if(d.subjects) localStorage.setItem('customSubjects', JSON.stringify(d.subjects)); if(d.tasks) localStorage.setItem('tasks', JSON.stringify(d.tasks)); if(d.taskHistory) localStorage.setItem('taskHistory', JSON.stringify(d.taskHistory)); if(d.studyLogs) localStorage.setItem('subjectLogs', JSON.stringify(d.studyLogs)); if(d.mData) localStorage.setItem('mWorldData', JSON.stringify(d.mData)); if(d.dseData) localStorage.setItem('dseData', JSON.stringify(d.dseData)); if(d.scheduleEvents) localStorage.setItem('scheduleEvents', JSON.stringify(d.scheduleEvents)); if(d.lifeList) localStorage.setItem('lifeList', JSON.stringify(d.lifeList)); if(d.lastResetTime) localStorage.setItem('lastResetTime', d.lastResetTime); if(d.files && dbEnabled) { for(const fid in d.files) { await saveFileToDB(fid, d.files[fid]); } } alert('Restored Successfully!'); location.reload(); } catch(err) { alert('Error importing file'); } }; r.readAsText(f); }
+    </script>
+</body>
+</html>
